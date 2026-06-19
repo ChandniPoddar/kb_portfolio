@@ -1,11 +1,11 @@
-import { Inter } from "next/font/google";
+// import { Inter } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
+// const inter = Inter({
+//   subsets: ["latin"],
+//   variable: "--font-inter",
+//   display: "swap",
+// });
 
 export const metadata = {
   title: "Karaya Bandhu Pvt. Ltd. | Incubating India's Gig Economy Ecosystems",
@@ -15,7 +15,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${inter.variable} font-sans h-full scroll-smooth antialiased dark`}>
+    <html lang="en" className={`font-sans h-full scroll-smooth antialiased dark`}>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 transition-colors duration-300">{children}</body>
     </html>
   );
