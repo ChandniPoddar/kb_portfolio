@@ -1,0 +1,18 @@
+# Task Checklist
+
+- [x] Update Mongoose database schema (`app/lib/db.js`)
+- [x] Create `/api/upload-resume` API endpoint (`app/api/upload-resume/route.js`)
+- [x] Implement PUT handler for Candidate Applications (`app/api/applications/route.js`)
+- [x] Implement PUT handler for LMS Certificates (`app/api/certificates/route.js`)
+- [x] Update `Careers.js` component to handle resume upload
+- [x] Update `admin/page.js` core portal:
+  - [x] Add state-controlled Alert & Confirm custom modal (`modalConfig` state + `showAlert`/`showConfirm` + JSX at end of component)
+  - [x] Wrap resume filename with clickable external URL link (table + review modal)
+  - [x] Update notification count badges to show unread only (`filter(a => !a.read)`)
+  - [x] Mark candidates as read when viewing their profile (`handleReviewCandidate`)
+  - [x] Mark claimed certificates as read when entering the certificates tab
+  - [x] Make the navigation sidebar sticky in the viewport
+  - [x] Convert Step order input to validated text field (digits only via `.replace(/[^0-9]/g, "")`)
+  - [x] Hide scrollbar on Brand Detailed Description textarea (`no-scrollbar` class)
+- [x] Add `fadeInDown` keyframe animation to `globals.css`
+- [x] Verify all logic in place (confirmed via PowerShell grep)

@@ -1,0 +1,27 @@
+# Walkthrough - Customer Booking Flow Back Navigation and Repayment Fix
+
+I have resolved the regression in the customer booking flow where back-button navigation after payment redirected users to the payment page again and caused data loss / duplicate bookings.
+
+## Changes Made
+
+### 1. Customer Frontend State Persistence
+
+#### [TokenPayment.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/TokenPayment.jsx)
+- Modified `handlePaymentSuccess` to NOT clear `pending_booking_${resolvedServiceId}` or `booking_draft_${resolvedServiceId}` from `sessionStorage` immediately upon payment completion. This ensures the keys remain intact if the user navigates backward using the browser back button from the provider search screen.
+
+#### [BookingPage.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/BookingPage.jsx)
+- In the check for paid bookings inside `loadData`, updated the redirect to support digital work / bidding requests. If the user hits the browser back button and lands on the Confirm Booking page after payment, it detects the paid state of the booking, clears the sessionStorage keys, and safely redirects the user back forward (to `/my-bids` for digital requests or `/search-provider/:bookingId` for standard requests).
+
+#### [ServiceDetail.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/ServiceDetail.jsx)
+- Added `onClick` handlers to both booking CTA links ("Book Securely" and "Insta-Book") to explicitly clear `pending_booking` and `booking_draft` keys from `sessionStorage`. This ensures that starting a booking flow from the service details page begins a completely fresh session.
+
+---
+
+## Verification Results
+
+### Production Build Verification
+I successfully ran a full client production build with Vite to verify there are no compilation, lint, or type issues across the project:
+```bash
+npm run build
+```
+The build completed successfully in 31.49 seconds, producing the production chunks without errors.

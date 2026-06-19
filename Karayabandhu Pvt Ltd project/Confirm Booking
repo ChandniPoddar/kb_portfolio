@@ -1,0 +1,134 @@
+# Fix: Browser Back Button from Complete Security Page Redirects to Payment Instead of Confirm Booking
+
+## Root Cause Analysis
+
+The booking flow is:
+
+```
+BookingPage (Confirm Booking) → TokenPayment (Complete Security) → SearchProviderPage
+```
+
+### The Core Problem
+
+When the customer submits the booking form on `BookingPage`, the `handleSubmit` function at [BookingPage.jsx:L397-L407](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/BookingPage.jsx#L397-L407):
+
+1. Calls `bookService(payload)` — creates the booking on the backend
+2. **Clears the session draft** (`sessionStorage.removeItem`)
+3. Navigates to `/token-payment` passing `bookingId` via `location.state`
+
+When the user hits browser back from `TokenPayment`:
+- They land back on `/booking/:serviceId` (BookingPage)
+- **The booking draft has been cleared** from `sessionStorage` (line 400)
+- The page reloads fresh from the user profile, discarding all previously entered data
+- **The booking already exists on the backend** in `pending` status, so submitting again would create a **duplicate booking**
+
+The `TokenPayment` page at [TokenPayment.jsx:L34](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/TokenPayment.jsx#L34) reads `bookingId` from `location.state`. On back-button navigation, `location.state` is preserved by React Router, so `TokenPayment` itself works. But the real issue is:
+
+1. **BookingPage draft data is wiped** when navigating to token-payment
+2. **No payment status check** — the back button re-enters the full booking flow
+3. **No guard against duplicate bookings** — customer could accidentally create another booking by submitting again
+4. The `PaymentPage` (full payment at [PaymentPage.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/components/PaymentPage.jsx)) is a separate page for full payment, **not** part of the token payment flow. The user's described issue maps to the `BookingPage → TokenPayment` flow.
+
+---
+
+## Proposed Changes
+
+### Frontend — TokenPayment Page
+
+#### [MODIFY] [TokenPayment.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/TokenPayment.jsx)
+
+**Problem**: The back button (`navigate(-1)`) goes to whichever page was previous in browser history, which might be the booking page where draft data was cleared. Also, if the user already paid, they can still see this page and attempt payment again.
+
+**Changes**:
+1. **Persist `bookingId` to `sessionStorage`** so it survives page refresh and back navigation (not just `location.state`)
+2. **Check booking status on mount** — if already `paid`, redirect to `search-provider` instead of showing payment form again  
+3. **Replace `navigate(-1)` back button** with explicit `navigate(`/booking/${serviceId}`)` pointing to the BookingPage, or redirect home if already paid
+4. **After successful payment, use `navigate(..., { replace: true })`** so the back button from SearchProviderPage doesn't return to the payment page
+
+---
+
+### Frontend — BookingPage
+
+#### [MODIFY] [BookingPage.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/BookingPage.jsx)
+
+**Problem**: Draft is cleared immediately on submit (line 400), before user has even paid. If user navigates back, all form data is lost.
+
+**Changes**:
+1. **Don't clear the draft on booking submission** — instead, save the `bookingId` alongside the draft data so we know a booking was already created
+2. **On mount, check if a pending/unpaid booking already exists** for this service — if so, restore the draft data and redirect to token-payment instead of allowing a duplicate booking
+3. **Clear the draft only after successful payment** (will be triggered via a flag check or after payment confirmation)
+4. **Save `bookingId` into the session draft** so back-navigation knows the booking already exists
+
+---
+
+### Frontend — Post-Payment Cleanup
+
+#### [MODIFY] [TokenPayment.jsx](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_Customer_frontend/frontend/src/pages/TokenPayment.jsx)
+
+After successful payment (in the Razorpay handler and wallet handler):
+1. **Clear the booking draft** from `sessionStorage` for the corresponding service
+2. **Clear the persisted `bookingId`** from `sessionStorage`
+3. **Navigate with `replace: true`** to prevent back-button return to payment page
+
+---
+
+### Summary of Session Storage Keys
+
+| Key | Purpose | Set When | Cleared When |
+|---|---|---|---|
+| `booking_draft_{serviceId}` | Form data + selectedAddOns + bookingId | On form change & after booking creation | After successful payment |
+| `pending_booking_{serviceId}` | Maps serviceId → bookingId for unpaid bookings | After `bookService()` succeeds | After successful payment |
+
+---
+
+## Detailed Code Changes
+
+### 1. BookingPage.jsx — Preserve Draft & Prevent Duplicates
+
+In `handleSubmit` (around line 397-413):
+- **Remove** `sessionStorage.removeItem(...)` (line 400)  
+- **Add** `bookingId` to the draft data in sessionStorage
+- **Add** a separate key `pending_booking_{serviceId}` to sessionStorage with the bookingId
+
+In `useEffect` data loader (around line 118-215):
+- **Add** a check at the start: if `sessionStorage.getItem(`pending_booking_${serviceId}`)` exists, verify the booking status via API
+- If the booking is `pending` (not yet paid), redirect to `/token-payment` with the bookingId
+- If the booking is `paid` or beyond, redirect to the appropriate page and clear stored data
+
+### 2. TokenPayment.jsx — Persist bookingId & Guard Against Re-payment
+
+On mount:
+- Save `bookingId` to `sessionStorage` as fallback (`token_payment_bookingId`)
+- Read from both `location.state` and `sessionStorage`
+- Fetch booking and check if status is already `paid` → redirect to search-provider
+
+Back button:
+- Replace `navigate(-1)` with smarter navigation that returns to BookingPage or home
+
+After payment success:
+- Clear `pending_booking_{serviceId}` and `booking_draft_{serviceId}` from sessionStorage
+- Clear `token_payment_bookingId`
+- Navigate with `replace: true`
+
+### 3. Backend — Add Duplicate Booking Guard (Optional Enhancement)
+
+#### [MODIFY] [booking.controller.js](file:///c:/Users/hp/Desktop/work/Karaya_Bandhu_backend/backend/controllers/booking.controller.js)
+
+Add a check in the `bookService` endpoint: if a `pending` booking already exists for the same user + service, return the existing booking instead of creating a duplicate. This is a safety net on the server side.
+
+---
+
+## Verification Plan
+
+### Manual Verification
+1. **Happy path**: Book service → fill details → submit → land on Complete Security → pay → verify redirected to Search Provider
+2. **Back button from Complete Security**: Press back → should return to Confirm Booking with all data pre-filled, and show option to proceed to payment (not create new booking)
+3. **Back button after payment**: Press back from Search Provider → should NOT return to Complete Security page (because of `replace: true`)
+4. **Page refresh on Complete Security**: Should reload correctly, not lose bookingId
+5. **Duplicate booking prevention**: If user goes back to Confirm Booking and clicks "Book" again, should detect existing pending booking and redirect to payment
+6. **Re-payment prevention**: If booking is already paid, Complete Security page should redirect away
+
+### Edge Cases
+- User opens Complete Security URL directly without state → should handle gracefully
+- User clears sessionStorage manually → should fall back to bookingId from location.state
+- Multiple tabs with different bookings → should work independently (keyed by serviceId)

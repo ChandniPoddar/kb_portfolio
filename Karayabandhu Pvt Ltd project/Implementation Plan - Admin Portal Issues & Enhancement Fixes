@@ -1,0 +1,105 @@
+# Implementation Plan - Admin Portal Issues & Enhancement Fixes
+
+This plan outlines the changes needed to resolve the 6 issues reported in the Karayabandhu Pvt Ltd portfolio and admin portal.
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Database Schema Update:**
+> - We will update `ApplicationSchema` and `CertificateClaimSchema` in [db.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/lib/db.js) to store a `read` boolean (default: `false`).
+> - We will add `fileUrl` to the `credentials` object in `ApplicationSchema` to track the uploaded resume path.
+> - This schema change is fully backwards-compatible (existing entries without these fields will default to `read: false` or blank `fileUrl`).
+
+> [!NOTE]
+> **New Endpoint:**
+> - We will create a new public route `/api/upload-resume` to allow candidates to upload their PDF/Word resumes during application submission (since the existing `/api/upload` is restricted to authenticated admins).
+
+---
+
+## Proposed Changes
+
+### 1. Database & Schema Updates
+
+#### [MODIFY] [db.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/lib/db.js)
+- Modify `ApplicationSchema` to include `read: { type: Boolean, default: false }` and `credentials.fileUrl: { type: String }`.
+- Modify `CertificateClaimSchema` to include `read: { type: Boolean, default: false }`.
+- Update `writeApplications` and `writeCertificates` helper methods to correctly serialize and save the new `read` and `fileUrl` fields.
+
+---
+
+### 2. API Routes
+
+#### [NEW] [route.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/api/upload-resume/route.js)
+- Create a public file-upload route that receives candidate resumes (`.pdf`, `.doc`, `.docx`), uploads them to the server's `public/uploads` directory, and returns the file path URL (`/uploads/...`).
+
+#### [MODIFY] [route.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/api/applications/route.js)
+- Add a `PUT` handler to accept `{ id, read: true }` and update the read status of a candidate application in the database.
+
+#### [MODIFY] [route.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/api/certificates/route.js)
+- Add a `PUT` handler to accept `{ ids: [...], read: true }` and update the read status of matching claimed certificates in the database.
+
+---
+
+### 3. Careers Component (Frontend Resume Upload)
+
+#### [MODIFY] [Careers.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/components/Careers.js)
+- In the file selection handler (`handleFileChange`), store the actual selected file in state (`selectedFile`).
+- In `handleFormSubmit`:
+  - If a file is selected, upload it using `FormData` to `/api/upload-resume` first.
+  - Retrieve the resulting `fileUrl`.
+  - Include the `fileUrl` and `fileName` in the `newApp` payload under the `credentials` object.
+  - Send the full payload with the `fileUrl` to `/api/applications`.
+
+---
+
+### 4. Admin Control Panel Updates
+
+#### [MODIFY] [page.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/admin/page.js)
+
+##### **Issue 1: Resume Link**
+- In the Candidate Hub modal, wrap the displayed resume file name with a clickable link pointing to `reviewCandidate.credentials.fileUrl`, opening it in a new tab:
+  ```javascript
+  <a href={reviewCandidate.credentials.fileUrl} target="_blank" rel="noopener noreferrer" className="...">
+    📄 {reviewCandidate.credentials.fileName}
+  </a>
+  ```
+
+##### **Issue 2: Notification Count badges & Seen status**
+- Filter badge count display using `applications.filter(a => !a.read).length` and `certificates.filter(c => !c.read).length` in both sidebar navigation and mobile dropdowns.
+- In Candidate Hub: when "View Profile" is clicked, trigger a helper `handleReviewCandidate(app)` that marks the application as `read` on the backend/state.
+- In LMS Certificates tab: when the `activeTab` changes to `"certificates"`, collect all unread certificates and call `/api/certificates` (PUT) to mark them as `read`.
+
+##### **Issue 3: Sticky Sidebar**
+- Update the sidebar wrapper classes to use Tailwind stickiness: `className="hidden lg:flex w-64 flex-shrink-0 flex-col sticky top-[100px] self-start"`. This anchors the sidebar in the viewport alongside long scrolling pages.
+
+##### **Issue 4: Custom Alert & Confirm Modals**
+- Introduce a state-driven `modalConfig` state:
+  - `{ type: "alert" | "confirm", title, message, onConfirm, onCancel }`
+- Define `showAlert(msg, title)` and `showConfirm(msg, title)` wrappers that return Promises.
+- Replace browser default `alert(...)` with `showAlert(...)`.
+- Replace browser default `confirm(...)` with `await showConfirm(...)` in all asynchronous delete/action handlers.
+- Render the custom dialog markup nicely with backdrop blurs (`backdrop-blur-sm`), a dark slate background, and standard button layouts.
+
+##### **Issue 5: Academy Module Input Validation**
+- In the "Publish New Training Module" section:
+  - Change the order input tag type from `number` to `text`.
+  - Add text validation `onChange={(e) => setModId(e.target.value.replace(/\D/g, ""))}` to ensure alphabet letters and symbols are stripped out of the input values and state before being submitted.
+
+##### **Issue 6: Detailed Description Scrollbar Removal**
+- In the "Incubated Brands" input form, add the `no-scrollbar` class to the Detailed Description textarea tag:
+  `className="... resize-none no-scrollbar"`.
+
+---
+
+## Verification Plan
+
+### Automated/Manual Tests
+- Deploy locally and access the Careers application form. Fill in fields and upload a PDF resume. Verify the application succeeds.
+- Open the Admin Panel:
+  1. Open Candidate Hub, click "View Profile" for the candidate, verify the resume opens in a new tab upon clicking the filename.
+  2. Verify that clicking "View Profile" immediately decrements the candidate hub notification count.
+  3. Verify that navigating to the "LMS Certificates" tab resets the certificate notification badge count.
+  4. Scroll down long lists of items and check that the sidebar remains sticky in the viewport.
+  5. Try delete actions and verify the beautiful custom confirm modal displays instead of the browser alert.
+  6. Attempt to type alphabets or special characters into the step sequence input of "Publish New Training Module" and verify they are rejected.
+  7. Check the Brand Detailed Description textarea and confirm that typing overflow text does not show any scrollbar.

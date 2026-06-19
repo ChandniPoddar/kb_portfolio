@@ -1,0 +1,52 @@
+# Implementation Plan - Fix Partner Onboarding Form Link
+
+Currently, the "Apply for Onboarding" link on the Academy gateway page is a static `mailto:` link:
+`mailto:partners@karayabandhu.com?subject=Inquiry for Partner Onboarding`
+
+Many users do not have a configured default desktop email client, making `mailto:` links appear broken or unresponsive. To provide a premium and seamless experience, we will replace this link with a fully interactive **Partner Onboarding Application Modal** directly in the landing page UI.
+
+This modal will allow prospective service providers ("Bandhus") to apply directly, automatically saving their application to the MongoDB backend via the existing `/api/applications` endpoint under the category `"Provider Onboarding"`. The submitted applications will then be visible and manageable within the Candidate Hub (ATS) tab of the Admin Portal.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> The onboarding application data will be stored under the existing `applications` collection with `category: "Provider Onboarding"`. These will show up in the Admin Portal under the **Candidate Hub (ATS)** tab. This design avoids adding extra schema complexity and allows the admin to view/delete these submissions immediately.
+
+---
+
+## Proposed Changes
+
+### [Frontend Component]
+
+#### [MODIFY] [Academy.js](file:///c:/Users/hp/Desktop/work/karyabandhu_portfolio/Karayabandhu%20Pvt%20Ltd%20project/app/components/Academy.js)
+- Add state variables for tracking the onboarding modal visibility, form inputs, validation error, submission loading status, and submission success status.
+- Replace the `mailto:` link anchor in the lock card footer with a `button` element that triggers the onboarding modal.
+- Render a beautiful glassmorphic modal using React Portal (`createPortal`) targeting `document.body` when `showOnboardingModal` is true.
+- Implement the following form fields:
+  - **Full Name** (text, required)
+  - **Email Address** (email, required)
+  - **Mobile Phone Number** (tel, 10-digit number, required)
+  - **Service Domain / Provider Category** (select dropdown: e.g., Electrician, Plumber, Carpenter, Mason, Delivery Agent, Field Executive, Cleaning partner, etc., required)
+  - **Years of Experience** (select dropdown, required)
+  - **City / Operational Location** (text, required)
+  - **Core Skills / Certifications** (text, comma-separated)
+  - **Short Bio / Background** (textarea)
+  - **Why do you want to partner with Karaya Bandhu?** (textarea, required)
+- Implement `handleObSubmit` to POST the payload data to `/api/applications` and save it.
+- Display a success state once submitted with the review details and a close option.
+
+---
+
+## Verification Plan
+
+### Manual Verification
+1. Open the landing page, navigate to the **Partner Academy & Certification** section.
+2. Click the **Apply for Onboarding →** link at the bottom of the lock gateway.
+3. Verify that a stunning glassmorphic modal overlay opens up containing the Partner Onboarding form.
+4. Attempt to submit with incomplete fields; verify validations work and show errors.
+5. Fill in all fields and submit the application. Verify the loading state and subsequent success modal.
+6. Log into the Admin Portal (`/admin`), navigate to the **Candidate Hub** tab.
+7. Verify that the new onboarding application is listed correctly with the category **Provider Onboarding** and all input fields match.
+8. Click **View Profile** for the new applicant and ensure the layout renders the provider details cleanly.

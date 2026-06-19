@@ -1,0 +1,42 @@
+# Subscription Model Flow Implementation Plan
+
+This plan outlines the steps to implement the "Subscription Model Flow" for providers after they have successfully completed the training and obtained their certificate.
+
+## User Review Required
+
+> [!IMPORTANT]
+> Please review the proposed flow below. I will create a new Subscription section on the page that providers will be redirected to after they close the certificate modal or click a new "Proceed to Subscription" button.
+
+## Open Questions
+
+> [!WARNING]  
+> 1. Do you want the Subscription component to be a new section on the existing homepage (e.g., scroll down to it), or a completely separate route (e.g., `/subscription`)?
+> 2. Should we hide the Subscription component from regular users and only show it to authenticated providers who have obtained a certificate? 
+> *(I will proceed with rendering it conditionally or adding a new section that unlocks when the certificate is generated, unless you prefer a separate page route.)*
+
+## Proposed Changes
+
+### Components Layer
+
+#### [NEW] `c:\Users\hp\Desktop\work\karyabandhu_portfolio\Karayabandhu Pvt Ltd project\app\components\Subscription.js`
+- Create a new component styled with the exact text provided in the prompt.
+- **Header**: "Congratulations! You have successfully completed the Provider Learning Program..."
+- **Features List**: Checkmarks for "Skilled Ustaad Verified Certificate", "Verified Provider Badge", etc.
+- **Plans**: Two styled cards for the "1-Year Verification Plan (₹99)" and "3-Year Verification Plan (₹199)".
+- **Action**: A button to "Pay & Activate", which will then show an "Awaiting Admin Approval" state as requested.
+
+#### [MODIFY] `c:\Users\hp\Desktop\work\karyabandhu_portfolio\Karayabandhu Pvt Ltd project\app\components\Academy.js`
+- Modify the Certificate Modal to include a "Proceed to Subscription" button.
+- Dispatch an event or call a prop when this button is clicked to signal that the user is ready to subscribe.
+
+#### [MODIFY] `c:\Users\hp\Desktop\work\karyabandhu_portfolio\Karayabandhu Pvt Ltd project\app\page.js`
+- Import and include the `<Subscription isDark={isDark} />` component.
+- Add an event listener to listen for the "proceed-to-subscription" event from the Academy component to automatically scroll the user to the Subscription section or unlock it.
+
+## Verification Plan
+
+### Manual Verification
+- We will manually authenticate as a provider in the local development server.
+- Complete the video training sessions to generate the certificate.
+- Verify the transition from the Certificate Modal to the Subscription Page.
+- Ensure the Subscription page UI matches the requested design and is fully responsive and aesthetic.

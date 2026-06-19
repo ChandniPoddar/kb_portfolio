@@ -1,0 +1,297 @@
+# Chandni Poddar — Portfolio CMS Implementation Plan
+
+A premium, fully dynamic Portfolio Management System built with **Next.js 15**, **TypeScript**, **Tailwind CSS**, **MongoDB Atlas**, **Cloudinary**, and **NextAuth**.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Before execution begins, please confirm the following:**
+> 1. **MongoDB Atlas URI** – Do you have an Atlas cluster ready? (We'll use a placeholder env var)
+> 2. **Cloudinary Account** – Do you have a Cloudinary account? (We'll need `CLOUD_NAME`, `API_KEY`, `API_SECRET`)
+> 3. **Admin Email/Password** – What initial admin credentials should be seeded? (Default: `admin@chandni.dev` / `Admin@1234`)
+> 4. **Domain / Vercel Project** – Do you want a custom domain or use `.vercel.app`?
+> 5. **Phase** – Should I build **Phase 1 (MVP)** first or the full system? *(Recommended: Phase 1 first)*
+
+> [!WARNING]
+> This plan scopes **Phase 1 MVP** for the initial build. Phase 2 (Blog, Analytics, AI, Multi-admin) will follow after user approval of Phase 1.
+
+---
+
+## Open Questions
+
+> [!NOTE]
+> - Should the portfolio owner name always be "Chandni Poddar" or configurable via Admin?
+> - Preferred accent color for Phase 1? (Plan defaults to **Blue `#2563EB` + Purple `#7C3AED`** gradient)
+> - Should the public portfolio be behind any auth, or fully public?
+> - Google Analytics ID? (Can be added later via env var)
+
+---
+
+## Proposed Changes
+
+### Sprint 1 — Project Scaffold & Design System
+
+#### [NEW] `portfolio-cms/` — Root Project
+
+Bootstrapped via `npx create-next-app@latest` with TypeScript, Tailwind CSS, ESLint, App Router.
+
+```
+portfolio-cms/
+├── src/
+│   ├── app/
+│   │   ├── (public)/          # Public-facing routes
+│   │   │   ├── page.tsx       # Home (Hero + all sections)
+│   │   │   ├── projects/
+│   │   │   └── layout.tsx
+│   │   ├── (admin)/           # Admin dashboard routes
+│   │   │   ├── admin/
+│   │   │   │   ├── login/
+│   │   │   │   ├── dashboard/
+│   │   │   │   ├── skills/
+│   │   │   │   ├── projects/
+│   │   │   │   ├── experience/
+│   │   │   │   ├── certificates/
+│   │   │   │   ├── achievements/
+│   │   │   │   ├── education/
+│   │   │   │   ├── resume/
+│   │   │   │   └── messages/
+│   │   │   └── layout.tsx
+│   │   ├── api/               # API Route Handlers
+│   │   │   ├── auth/
+│   │   │   ├── skills/
+│   │   │   ├── projects/
+│   │   │   ├── experience/
+│   │   │   ├── certificates/
+│   │   │   ├── achievements/
+│   │   │   ├── education/
+│   │   │   ├── contact/
+│   │   │   ├── upload/
+│   │   │   └── hero/
+│   │   └── layout.tsx
+│   ├── components/
+│   │   ├── public/            # Public website components
+│   │   │   ├── Navbar.tsx
+│   │   │   ├── Hero.tsx
+│   │   │   ├── About.tsx
+│   │   │   ├── Skills.tsx
+│   │   │   ├── Experience.tsx
+│   │   │   ├── Projects.tsx
+│   │   │   ├── Achievements.tsx
+│   │   │   ├── Certificates.tsx
+│   │   │   ├── Education.tsx
+│   │   │   ├── CodingProfiles.tsx
+│   │   │   ├── Contact.tsx
+│   │   │   └── Footer.tsx
+│   │   ├── admin/             # Admin dashboard components
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── DashboardCard.tsx
+│   │   │   ├── DataTable.tsx
+│   │   │   └── forms/
+│   │   └── ui/                # Shared UI primitives (Shadcn)
+│   ├── lib/
+│   │   ├── mongodb.ts         # DB connection singleton
+│   │   ├── cloudinary.ts      # Cloudinary config
+│   │   ├── auth.ts            # NextAuth config
+│   │   └── utils.ts
+│   ├── models/                # Mongoose schemas
+│   │   ├── User.ts
+│   │   ├── Skill.ts
+│   │   ├── Project.ts
+│   │   ├── Experience.ts
+│   │   ├── Achievement.ts
+│   │   ├── Certificate.ts
+│   │   ├── Education.ts
+│   │   ├── Contact.ts
+│   │   └── HeroConfig.ts
+│   ├── types/                 # TypeScript interfaces
+│   ├── validators/            # Zod schemas
+│   ├── hooks/                 # Custom React hooks
+│   └── middleware.ts          # Protect /admin/* routes
+├── public/
+├── .env.local
+├── tailwind.config.ts
+├── next.config.ts
+└── package.json
+```
+
+---
+
+### Sprint 2 — Database Models & API Layer
+
+#### Mongoose Models
+| Model | Key Fields |
+|-------|-----------|
+| `User` | name, email, password (bcrypt), role |
+| `HeroConfig` | name, designation, tagline, profileImage, resumeUrl, socialLinks[] |
+| `Skill` | name, category, icon, order |
+| `Experience` | company, role, startDate, endDate, current, description, technologies[], logo |
+| `Project` | title, slug, shortDescription, description, image, githubUrl, liveUrl, category, technologies[], featured, status |
+| `Achievement` | title, description, image, date, certificateLink |
+| `Certificate` | title, issuer, issueDate, credentialUrl, image |
+| `Education` | institute, degree, cgpa, percentage, startYear, endYear, description |
+| `Contact` | name, email, subject, message, isRead, createdAt |
+
+#### API Routes (Next.js Route Handlers)
+- `POST /api/auth/[...nextauth]` — NextAuth credentials provider
+- `GET|POST /api/skills` — List / create
+- `PUT|DELETE /api/skills/[id]` — Update / delete
+- Same pattern for: projects, experience, achievements, certificates, education, contact
+- `POST /api/upload` — Cloudinary upload (images + PDF)
+- `GET|PUT /api/hero` — Hero section config
+
+---
+
+### Sprint 3 — Public Portfolio (Phase 1 Sections)
+
+#### Design System
+- **Fonts**: Sora (headings), Inter (body) via `next/font/google`
+- **Color Palette**:
+  - Background: `#030712` (near-black)
+  - Card surface: `#111827`
+  - Border: `#1F2937`
+  - Primary: `#2563EB` → `#7C3AED` gradient
+  - Text: `#F9FAFB`, Muted: `#9CA3AF`
+- **Motion**: Framer Motion for all reveals, Lenis for smooth scroll
+- **Cursor**: Custom magnetic cursor effect
+
+#### Sections Built
+1. **Navbar** — Sticky glass nav, active link highlight, mobile hamburger
+2. **Hero** — Full-screen, typing animation (Typewriter), floating profile image, animated particle background, magnetic CTA buttons, scroll indicator
+3. **About** — Slide-in profile + content on scroll
+4. **Skills** — Interactive floating skill cloud (canvas or Framer Motion), category filter tabs, hover glow
+5. **Experience** — Vertical timeline with scroll-grow line, cards appear one-by-one
+6. **Projects** — Bento Grid layout, hover tilt+parallax+glow, fullscreen modal with screenshots/details
+7. **Achievements** — Trophy cards with 3D rotation hover
+8. **Certificates** — Infinite scroll horizontal carousel
+9. **Education** — Clean timeline cards
+10. **Coding Profiles** — GitHub stats cards (GitHub README stats embed), LeetCode, HackerRank cards
+11. **Contact** — Glassmorphism card, focus glow inputs, success animation on submit
+12. **Footer** — Social links, quick nav
+
+---
+
+### Sprint 4 — Admin Dashboard (Phase 1 CMS)
+
+#### Admin Login
+- Glass card on gradient background with floating shapes
+- `next-auth` credentials provider, JWT session
+- Bcrypt password verification
+- Protected by `middleware.ts` (redirects `/admin/*` if not authenticated)
+
+#### Dashboard Home
+- Stats widgets: Total Projects, Skills, Certificates, Messages
+- Count-up animation on widget numbers
+- Recent contact messages table
+- Quick action links
+
+#### Admin Sidebar
+- Collapsible animated sidebar
+- Icons via `lucide-react`
+- Active route highlight
+
+#### CMS Modules (Phase 1)
+| Module | Features |
+|--------|---------|
+| **Hero Manager** | Edit name/designation/tagline, upload profile image, upload resume, update social links |
+| **Skills** | Add/Edit/Delete skill, assign category, set icon, reorder |
+| **Experience** | Add/Edit/Delete, upload company logo, drag-to-reorder |
+| **Projects** | Rich editor, upload image, tech stack tags, featured toggle, category, GitHub/Live URLs |
+| **Achievements** | Add/Edit/Delete, upload image, date picker |
+| **Certificates** | Add/Edit/Delete, upload certificate image, credential URL |
+| **Education** | Add/Edit/Delete education entries |
+| **Resume** | Upload/replace PDF, version history display |
+| **Messages** | Inbox view (Gmail-style), mark read/unread, delete |
+
+---
+
+### Sprint 5 — SEO, Performance, Polish
+
+- `generateMetadata()` in every page
+- Open Graph tags for social sharing
+- `sitemap.ts` auto-generation
+- `robots.txt`
+- `next/image` for all images (automatic optimization)
+- `dynamic()` imports for heavy components
+- ISR (`revalidate = 3600`) on data-fetching pages
+- Error boundaries (`error.tsx`, `not-found.tsx`)
+- Loading skeletons (`loading.tsx`)
+- Toast notifications via `sonner`
+- Full mobile responsiveness (mobile-first Tailwind)
+- Dark mode (default) with light mode toggle
+
+---
+
+### Sprint 6 — Deployment
+
+- Environment variables configured in Vercel
+- MongoDB Atlas connection string
+- Cloudinary credentials
+- NextAuth secret + URL
+- One-click Vercel deploy
+
+---
+
+## Key Dependencies
+
+```json
+{
+  "next": "15.x",
+  "react": "19.x",
+  "typescript": "5.x",
+  "tailwindcss": "4.x",
+  "framer-motion": "^11",
+  "@next-auth/mongodb-adapter": "^1",
+  "next-auth": "^4",
+  "mongoose": "^8",
+  "bcryptjs": "^2",
+  "jsonwebtoken": "^9",
+  "cloudinary": "^2",
+  "zod": "^3",
+  "react-hook-form": "^7",
+  "@hookform/resolvers": "^3",
+  "sonner": "^1",
+  "lucide-react": "^0.400",
+  "@radix-ui/react-*": "latest",
+  "lenis": "^1",
+  "typewriter-effect": "^2",
+  "react-hot-toast": "^2",
+  "zustand": "^4",
+  "chart.js": "^4",
+  "react-chartjs-2": "^5",
+  "@hello-pangea/dnd": "^16"
+}
+```
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- `npm run build` — TypeScript compile + Next.js build check (zero errors)
+- `npm run lint` — ESLint clean
+
+### Manual Verification
+1. Public portfolio loads at `localhost:3000` — all sections visible and animated
+2. Admin login at `/admin/login` — JWT session created
+3. Add a skill via Admin → appears on public skills section
+4. Add a project → appears in public projects grid
+5. Submit contact form → message appears in admin inbox
+6. Upload resume → download button works on public site
+7. Mobile layout tested at 375px, 768px, 1024px, 1440px breakpoints
+
+---
+
+## Phase 2 Roadmap (Post-MVP)
+
+| Feature | Status |
+|---------|--------|
+| Blog System | Planned |
+| Analytics Dashboard (Vercel Analytics + custom tracking) | Planned |
+| Theme Customizer (admin-managed colors) | Planned |
+| Testimonials Section | Planned |
+| GitHub Activity Sync | Planned |
+| Multi-Admin + RBAC | Planned |
+| AI Resume Analyzer | Planned |
+| Newsletter System | Planned |
